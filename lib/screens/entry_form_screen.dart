@@ -40,6 +40,18 @@ class _EmployeeEntryFormScreenState extends State<EmployeeEntryFormScreen> {
   String? _namesType; // 'Presumtion Cases' or 'TB Patient'
   final TextEditingController _nameInputController = TextEditingController();
   List<String> _providedNames = [];
+  String? _selectedReasonOfVisit;
+  final List<String> _reasonOfVisitOptions = [
+    'Routine Checkup',
+    'Follow-up',
+    'Emergency',
+    'Referral',
+    'Other',
+  ];
+  String? _moveMarkerWarning;
+  LatLng? _currentLatLng;
+  LatLng? _markerLatLng;
+  GoogleMapController? _mapController;
 
   @override
   void initState() {
@@ -324,302 +336,358 @@ class _EmployeeEntryFormScreenState extends State<EmployeeEntryFormScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: const Text('Add Unlisted Doctor'),
-          content: SingleChildScrollView(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(labelText: 'Doctor Name'),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Please enter doctor name';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    value: _selectedFacilityType,
-                    decoration: const InputDecoration(labelText: 'Facility Type'),
-                    items: _facilityTypes.map((type) {
-                      return DropdownMenuItem(
-                        value: type,
-                        child: Text(type),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        _selectedFacilityType = value;
-                      }
-                    },
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please select facility type';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _facilityNameController,
-                    decoration: const InputDecoration(labelText: 'Facility Name'),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Please enter facility name';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _mobileNumberController,
-                    decoration: const InputDecoration(labelText: 'Mobile Number'),
-                    keyboardType: TextInputType.phone,
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Please enter mobile number';
-                      }
-                      if (!RegExp(r'^\d{10}$').hasMatch(value.trim())) {
-                        return 'Please enter a valid 10-digit mobile number';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _emailController,
-                    decoration: const InputDecoration(
-                      labelText: 'Email ID (Optional)',
-                      hintText: 'Enter email address',
-                    ),
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (value) {
-                      if (value != null && value.trim().isNotEmpty) {
-                        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}\$').hasMatch(value.trim())) {
-                          return 'Please enter a valid email address';
-                        }
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _hfIdController,
-                    decoration: const InputDecoration(labelText: 'HF ID (Optional)'),
-                    keyboardType: TextInputType.number,
-                    // No validator, optional
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _latitudeController,
-                          decoration: const InputDecoration(labelText: 'Latitude'),
-                          keyboardType: TextInputType.numberWithOptions(decimal: true, signed: true),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Enter latitude';
-                            }
-                            final lat = double.tryParse(value.trim());
-                            if (lat == null || lat < -90 || lat > 90) {
-                              return 'Latitude must be between -90 and 90';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _longitudeController,
-                          decoration: const InputDecoration(labelText: 'Longitude'),
-                          keyboardType: TextInputType.numberWithOptions(decimal: true, signed: true),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Enter longitude';
-                            }
-                            final lng = double.tryParse(value.trim());
-                            if (lng == null || lng < -180 || lng > 180) {
-                              return 'Longitude must be between -180 and 180';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.my_location),
-                    label: const Text('Use My Current Location'),
-                    onPressed: _isLocating ? null : () async {
-                      setState(() { _isLocating = true; });
-                      await _getCurrentLocation();
-                      setState(() { _isLocating = false; });
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  if (_currentLatLng != null)
-                    SizedBox(
-                      height: 200,
-                      child: GoogleMap(
-                        initialCameraPosition: CameraPosition(
-                          target: _markerLatLng ?? _currentLatLng!,
-                          zoom: 16,
-                        ),
-                        markers: _markerLatLng != null
-                          ? {
-                              Marker(
-                                markerId: const MarkerId('doctor_marker'),
-                                position: _markerLatLng!,
-                                draggable: true,
-                                onDragEnd: (newPos) {
-                                  final distance = Geolocator.distanceBetween(
-                                    _currentLatLng!.latitude, _currentLatLng!.longitude,
-                                    newPos.latitude, newPos.longitude,
-                                  );
-                                  if (distance <= 500) {
-                                    setState(() {
-                                      _markerLatLng = newPos;
-                                      _latitudeController.text = newPos.latitude.toString();
-                                      _longitudeController.text = newPos.longitude.toString();
-                                    });
-                                  } else {
-                                    // Snap back to previous position
-                                    setState(() {
-                                      // Optionally show a warning
-                                    });
-                                  }
-                                },
-                              ),
-                            }
-                          : {},
-                        onMapCreated: (controller) {
-                          _mapController = controller;
-                        },
-                      ),
-                    ),
-                  if (_currentLatLng != null)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 4.0),
-                      child: Text('You can move the marker, but only within 500 meters of your current location.'),
-                    ),
-                  const SizedBox(height: 18),
-                  Text(
-                    'Result of Visit',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: _resultOfVisitController,
-                    minLines: 2,
-                    maxLines: 4,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      hintText: 'Enter result of visit',
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Please enter the result of visit';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    'Provide Name/s of',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 10),
+          content: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_currentLatLng != null)
                   Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      RadioListTile<String>(
-                        title: const Text('Presumtion Cases'),
-                        value: 'Presumtion Cases',
-                        groupValue: _namesType,
-                        onChanged: (value) {
-                          setState(() {
-                            _namesType = value;
-                            _providedNames.clear();
-                          });
-                        },
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                      RadioListTile<String>(
-                        title: const Text('TB Patient'),
-                        value: 'TB Patient',
-                        groupValue: _namesType,
-                        onChanged: (value) {
-                          setState(() {
-                            _namesType = value;
-                            _providedNames.clear();
-                          });
-                        },
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ],
-                  ),
-                  if (_namesType != null) ...[
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _nameInputController,
-                            decoration: const InputDecoration(
-                              hintText: 'Enter name',
-                              border: OutlineInputBorder(),
-                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                      SizedBox(
+                        height: 200,
+                        child: Listener(
+                          onPointerDown: (_) {},
+                          child: GoogleMap(
+                            initialCameraPosition: CameraPosition(
+                              target: _markerLatLng ?? _currentLatLng!,
+                              zoom: 16,
                             ),
+                            markers: _markerLatLng != null
+                                ? {
+                                    Marker(
+                                      markerId: const MarkerId('doctor_marker'),
+                                      position: _markerLatLng!,
+                                      draggable: true,
+                                      onDragEnd: (newPos) {
+                                        final distance = Geolocator.distanceBetween(
+                                          _currentLatLng!.latitude, _currentLatLng!.longitude,
+                                          newPos.latitude, newPos.longitude,
+                                        );
+                                        if (distance <= 500) {
+                                          setState(() {
+                                            _markerLatLng = newPos;
+                                            _latitudeController.text = newPos.latitude.toString();
+                                            _longitudeController.text = newPos.longitude.toString();
+                                            _moveMarkerWarning = null;
+                                          });
+                                        } else {
+                                          setState(() {
+                                            _moveMarkerWarning = 'You can only move the marker within 500 meters of your current location.';
+                                          });
+                                          Future.delayed(const Duration(milliseconds: 300), () {
+                                            setState(() {
+                                              _markerLatLng = _currentLatLng;
+                                              _latitudeController.text = _currentLatLng!.latitude.toString();
+                                              _longitudeController.text = _currentLatLng!.longitude.toString();
+                                            });
+                                          });
+                                        }
+                                      },
+                                    ),
+                                  }
+                                : {},
+                            onMapCreated: (controller) {
+                              _mapController = controller;
+                            },
+                            myLocationEnabled: true,
+                            myLocationButtonEnabled: true,
+                            zoomControlsEnabled: true,
+                            scrollGesturesEnabled: true,
+                            tiltGesturesEnabled: true,
+                            rotateGesturesEnabled: true,
+                            zoomGesturesEnabled: true,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        SizedBox(
-                          height: 48,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              final name = _nameInputController.text.trim();
-                              if (name.isNotEmpty) {
-                                setState(() {
-                                  _providedNames.add(name);
-                                  _nameInputController.clear();
-                                });
+                      ),
+                      if (_moveMarkerWarning != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            _moveMarkerWarning!,
+                            style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                    ],
+                  ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          TextFormField(
+                            controller: _nameController,
+                            decoration: const InputDecoration(labelText: 'Doctor Name'),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Please enter doctor name';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          DropdownButtonFormField<String>(
+                            value: _selectedFacilityType,
+                            decoration: const InputDecoration(labelText: 'Facility Type'),
+                            items: _facilityTypes.map((type) {
+                              return DropdownMenuItem(
+                                value: type,
+                                child: Text(type),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              if (value != null) {
+                                _selectedFacilityType = value;
                               }
                             },
-                            child: const Text('Add'),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please select facility type';
+                              }
+                              return null;
+                            },
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    if (_providedNames.isNotEmpty)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Names:', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500)),
-                          const SizedBox(height: 6),
-                          ..._providedNames.map((name) => ListTile(
-                                title: Text(name),
-                                trailing: IconButton(
-                                  icon: const Icon(Icons.delete, color: Colors.red),
-                                  onPressed: () {
-                                    setState(() {
-                                      _providedNames.remove(name);
-                                    });
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _facilityNameController,
+                            decoration: const InputDecoration(labelText: 'Facility Name'),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Please enter facility name';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _mobileNumberController,
+                            decoration: const InputDecoration(labelText: 'Mobile Number'),
+                            keyboardType: TextInputType.phone,
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Please enter mobile number';
+                              }
+                              if (!RegExp(r'^\d{10}$').hasMatch(value.trim())) {
+                                return 'Please enter a valid 10-digit mobile number';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _emailController,
+                            decoration: const InputDecoration(
+                              labelText: 'Email ID (Optional)',
+                              hintText: 'Enter email address',
+                            ),
+                            keyboardType: TextInputType.emailAddress,
+                            validator: (value) {
+                              if (value != null && value.trim().isNotEmpty) {
+                                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}\$').hasMatch(value.trim())) {
+                                  return 'Please enter a valid email address';
+                                }
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _hfIdController,
+                            decoration: const InputDecoration(labelText: 'HF ID (Optional)'),
+                            keyboardType: TextInputType.number,
+                            // No validator, optional
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _latitudeController,
+                                  decoration: const InputDecoration(labelText: 'Latitude'),
+                                  keyboardType: TextInputType.numberWithOptions(decimal: true, signed: true),
+                                  validator: (value) {
+                                    if (value == null || value.trim().isEmpty) {
+                                      return 'Enter latitude';
+                                    }
+                                    final lat = double.tryParse(value.trim());
+                                    if (lat == null || lat < -90 || lat > 90) {
+                                      return 'Latitude must be between -90 and 90';
+                                    }
+                                    return null;
                                   },
                                 ),
-                              )),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _longitudeController,
+                                  decoration: const InputDecoration(labelText: 'Longitude'),
+                                  keyboardType: TextInputType.numberWithOptions(decimal: true, signed: true),
+                                  validator: (value) {
+                                    if (value == null || value.trim().isEmpty) {
+                                      return 'Enter longitude';
+                                    }
+                                    final lng = double.tryParse(value.trim());
+                                    if (lng == null || lng < -180 || lng > 180) {
+                                      return 'Longitude must be between -180 and 180';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.my_location),
+                            label: const Text('Use My Current Location'),
+                            onPressed: _isLocating ? null : () async {
+                              setState(() { _isLocating = true; });
+                              await _getCurrentLocation();
+                              setState(() { _isLocating = false; });
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Result of Visit',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 10),
+                          TextFormField(
+                            controller: _resultOfVisitController,
+                            minLines: 2,
+                            maxLines: 4,
+                            decoration: const InputDecoration(
+                              border: OutlineInputBorder(),
+                              hintText: 'Enter result of visit',
+                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Please enter the result of visit';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 18),
+                          Text(
+                            'Provide Name/s of',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 10),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              RadioListTile<String>(
+                                title: const Text('Presumtion Cases'),
+                                value: 'Presumtion Cases',
+                                groupValue: _namesType,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _namesType = value;
+                                    _providedNames.clear();
+                                  });
+                                },
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                              RadioListTile<String>(
+                                title: const Text('TB Patient'),
+                                value: 'TB Patient',
+                                groupValue: _namesType,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _namesType = value;
+                                    _providedNames.clear();
+                                  });
+                                },
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ],
+                          ),
+                          if (_namesType != null) ...[
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _nameInputController,
+                                    decoration: const InputDecoration(
+                                      hintText: 'Enter name',
+                                      border: OutlineInputBorder(),
+                                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                SizedBox(
+                                  height: 48,
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      final name = _nameInputController.text.trim();
+                                      if (name.isNotEmpty) {
+                                        setState(() {
+                                          _providedNames.add(name);
+                                          _nameInputController.clear();
+                                        });
+                                      }
+                                    },
+                                    child: const Text('Add'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            if (_providedNames.isNotEmpty)
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Names:', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500)),
+                                  const SizedBox(height: 6),
+                                  ..._providedNames.map((name) => ListTile(
+                                        title: Text(name),
+                                        trailing: IconButton(
+                                          icon: const Icon(Icons.delete, color: Colors.red),
+                                          onPressed: () {
+                                            setState(() {
+                                              _providedNames.remove(name);
+                                            });
+                                          },
+                                        ),
+                                      )),
+                                ],
+                              ),
+                          ],
+                          const SizedBox(height: 12),
+                          DropdownButtonFormField<String>(
+                            value: _selectedReasonOfVisit,
+                            decoration: const InputDecoration(labelText: 'Reason of Visit'),
+                            items: _reasonOfVisitOptions.map((reason) {
+                              return DropdownMenuItem(
+                                value: reason,
+                                child: Text(reason),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedReasonOfVisit = value;
+                              });
+                            },
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please select a reason of visit';
+                              }
+                              return null;
+                            },
+                          ),
                         ],
                       ),
-                  ],
-                ],
-              ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           actions: [

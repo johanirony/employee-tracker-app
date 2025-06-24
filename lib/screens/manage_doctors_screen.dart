@@ -94,7 +94,7 @@ class _ManageDoctorsScreenState extends State<ManageDoctorsScreen> with SingleTi
       facilityName: _facilityNameController.text.trim(),
       mobileNumber: _mobileNumberController.text.trim(),
       email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
-      hfId: _hfIdController.text.trim(),
+      hfId: _hfIdController.text.trim().isEmpty ? null : _hfIdController.text.trim(),
       latitude: double.tryParse(_latitudeController.text.trim()),
       longitude: double.tryParse(_longitudeController.text.trim()),
     );

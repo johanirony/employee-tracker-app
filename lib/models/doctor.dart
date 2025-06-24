@@ -8,7 +8,7 @@ class Doctor {
   final String facilityName;
   final String mobileNumber;
   final String? email;
-  final String hfId;
+  final String? hfId;
   final double? latitude;
   final double? longitude;
   final bool pendingApproval;
@@ -23,7 +23,7 @@ class Doctor {
     required this.facilityName,
     required this.mobileNumber,
     this.email,
-    required this.hfId,
+    this.hfId,
     this.latitude,
     this.longitude,
     this.pendingApproval = false,
@@ -57,7 +57,7 @@ class Doctor {
       facilityName: map['facilityName'] ?? '',
       mobileNumber: map['mobileNumber'] ?? '',
       email: map['email'],
-      hfId: map['hfId'] ?? '',
+      hfId: map['hfId'],
       latitude: map['latitude'] != null ? (map['latitude'] as num).toDouble() : null,
       longitude: map['longitude'] != null ? (map['longitude'] as num).toDouble() : null,
       pendingApproval: map['pendingApproval'] ?? false,
