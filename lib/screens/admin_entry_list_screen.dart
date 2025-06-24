@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart'; // For Timestamp, GeoPoin
 import 'package:intl/intl.dart'; // For date formatting
 import '../services/firestore_service.dart';
 import '../models/entry_model.dart'; // Import Entry model
+import 'admin_entry_detail_screen.dart';
 
 class AdminEntryListScreen extends StatefulWidget {
   const AdminEntryListScreen({super.key});
@@ -99,8 +100,6 @@ class _AdminEntryListScreenState extends State<AdminEntryListScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text('Location: ${_formatLocation(entry.location)}', style: const TextStyle(fontSize: 13)),
-                                Text('Doctor: ${entry.selectedDoctorName}', style: const TextStyle(fontSize: 13)),
-                                Text('(${entry.selectedDoctorLocation})', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)), // Doctor location/address
                                 const SizedBox(height: 4),
                                 Text(
                                   'Time: ${_formatTimestamp(entry.entryTime)}',
@@ -110,8 +109,11 @@ class _AdminEntryListScreenState extends State<AdminEntryListScreen> {
                             ),
                             // Optional: Tap to view details or map?
                             onTap: () {
-                                 ScaffoldMessenger.of(context).showSnackBar(
-                                   SnackBar(content: Text("Entry details view for ${entry.employeeName} not implemented."))
+                                 Navigator.push(
+                                   context,
+                                   MaterialPageRoute(
+                                     builder: (context) => AdminEntryDetailScreen(entry: entry),
+                                   ),
                                  );
                             },
                           ),

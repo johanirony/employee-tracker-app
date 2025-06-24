@@ -14,6 +14,7 @@ class AuthService {
   // Sign Up with Email and Password
   Future<UserCredential?> signUpWithEmailAndPassword(String email, String password) async {
     try {
+      print("DEBUG: Starting sign up process for email: $email");
       UserCredential userCredential = await _firebaseAuth.createUserWithEmailAndPassword(
         email: email.trim(),
         password: password,
@@ -23,15 +24,14 @@ class AuthService {
       // Add user profile to Firestore after successful auth registration
       if (userCredential.user != null) {
         try {
+          print("DEBUG: Creating Firestore profile for new user");
           await _firestoreService.setUserProfile(userCredential.user!, defaultRole: 'employee');
+          print("DEBUG: Firestore profile created successfully");
         } catch (firestoreError) {
           print('Firestore profile creation failed after successful Auth registration: $firestoreError');
-          // Optional: Decide if you want to rollback Auth user creation or notify user/admin
-          // For now, we throw the Firestore error, the user *is* authenticated at this point.
           throw firestoreError;
         }
       } else {
-        // This case should be rare if createUserWithEmailAndPassword succeeded
         print('Warning: User object was null after successful registration.');
       }
 
@@ -39,11 +39,10 @@ class AuthService {
 
     } on FirebaseAuthException catch (e) {
       print('Firebase Auth Sign Up Error: ${e.code} - ${e.message}');
-      throw e; // Re-throw Auth error
+      throw e;
     } catch (e) {
-      // Catches errors from FirestoreService call or other unexpected issues
       print('General Sign Up Error (Auth or Firestore): $e');
-      throw e; // Re-throw general error
+      throw e;
     }
   }
 

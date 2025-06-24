@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    match /users/{userId} {
+      // Allow users to read their own document
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      
+      // Allow users to create their own document
+      allow create: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow users to update their own document, and admins to update any user
+      allow update: if request.auth != null && (
+        request.auth.uid == userId || 
+        (isAdmin() && (
+          // Allow admins to update these specific fields
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isApproved', 'districtId', 'lastUpdatedAt']) ||
+          // Or if they're updating their own document
+          request.auth.uid == userId
+        ))
+      );
+      
+      // Only allow admins to delete users
+      allow delete: if request.auth != null && isAdmin();
+    }
+    
+    // Districts Collection Rules
+    match /districts/{districtId} {
+      // Allow all authenticated users to read districts
+      allow read: if request.auth != null;
+      // Only allow admins to create, update, or delete districts
+      allow create, update, delete: if request.auth != null && isAdmin();
+    }
+
+    // Doctors collection rules
+    match /doctors/{doctorId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null && isAdmin();
+    }
+  }
+} 

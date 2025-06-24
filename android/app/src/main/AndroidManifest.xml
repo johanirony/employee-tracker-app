@@ -7,6 +7,8 @@
         android:label="employee_tracking_app"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <meta-data android:name="com.google.android.geo.API_KEY"
+               android:value="AIzaSyBS_H240jygNyVPfcuXCxMw7ASC0m-BMlM"/>
         <activity
             android:name=".MainActivity"
             android:exported="true"
