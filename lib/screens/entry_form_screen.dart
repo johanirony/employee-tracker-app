@@ -52,6 +52,10 @@ class _EmployeeEntryFormScreenState extends State<EmployeeEntryFormScreen> {
   LatLng? _currentLatLng;
   LatLng? _markerLatLng;
   GoogleMapController? _mapController;
+  String? _selectedFacilityType;
+  final List<String> _facilityTypes = [
+    'Clinic', 'Hub', 'Chemist', 'Lab', 'All'
+  ];
 
   @override
   void initState() {
@@ -130,7 +134,27 @@ class _EmployeeEntryFormScreenState extends State<EmployeeEntryFormScreen> {
           _isLoadingDoctors = false;
         });
       }
+    }
   }
+
+  Future<void> _loadDoctorsForDistrictAndFacilityType(String district, String facilityType) async {
+    setState(() => _isLoadingDoctors = true);
+    try {
+      final doctors = await _doctorService.getDoctorsByDistrictAndFacilityType(district, facilityType);
+      if (mounted) {
+        setState(() {
+          _availableDoctors = doctors;
+          _isLoadingDoctors = false;
+        });
+      }
+    } catch (e) {
+      print("Error loading doctors: $e");
+      if (mounted) {
+        setState(() {
+          _isLoadingDoctors = false;
+        });
+      }
+    }
   }
 
   Future<void> _getCurrentLocation() async {
@@ -214,6 +238,22 @@ class _EmployeeEntryFormScreenState extends State<EmployeeEntryFormScreen> {
         _employeeNumber.contains('Error')) {
       _showErrorSnackbar("User data not loaded correctly.");
       return;
+    }
+
+    if (_selectedDoctor != null &&
+        _selectedDoctor!.latitude != null &&
+        _selectedDoctor!.longitude != null &&
+        _currentLocation != null) {
+      double distance = Geolocator.distanceBetween(
+        _currentLocation!.latitude,
+        _currentLocation!.longitude,
+        _selectedDoctor!.latitude!,
+        _selectedDoctor!.longitude!,
+      );
+      if (distance > 500) {
+        _showErrorSnackbar("You must be within 500 meters of the selected facility to submit.");
+        return;
+      }
     }
 
     setState(() => _isSubmitting = true);
@@ -797,6 +837,38 @@ class _EmployeeEntryFormScreenState extends State<EmployeeEntryFormScreen> {
                           ),
                         ),
                         const SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          value: _selectedFacilityType,
+                          decoration: const InputDecoration(labelText: 'Type of Facility'),
+                          items: _facilityTypes.map((type) {
+                            return DropdownMenuItem(
+                              value: type,
+                              child: Text(type),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedFacilityType = value;
+                              _selectedDoctor = null;
+                              if (value != null && _employeeDistrict != 'Loading...' && _employeeDistrict != 'Error' && _employeeDistrict != 'No district assigned') {
+                                if (value == 'All') {
+                                  _loadDoctorsForDistrict(_employeeDistrict);
+                                } else {
+                                  _loadDoctorsForDistrictAndFacilityType(_employeeDistrict, value);
+                                }
+                              } else {
+                                _availableDoctors = [];
+                              }
+                            });
+                          },
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please select type of facility';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 15),
                         if (_isLoadingDoctors)
                           const Center(child: CircularProgressIndicator())
                         else if (_availableDoctors.isEmpty)

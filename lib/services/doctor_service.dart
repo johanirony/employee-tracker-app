@@ -31,6 +31,16 @@ class DoctorService {
     return snapshot.docs.map((doc) => Doctor.fromMap(doc.id, doc.data() as Map<String, dynamic>)).toList();
   }
 
+  Future<List<Doctor>> getDoctorsByDistrictAndFacilityType(String district, String facilityType) async {
+    final snapshot = await _doctorsCollection
+        .where('district', isEqualTo: district)
+        .where('facilityType', isEqualTo: facilityType)
+        .where('pendingApproval', isEqualTo: false)
+        .where('rejected', isEqualTo: false)
+        .get();
+    return snapshot.docs.map((doc) => Doctor.fromMap(doc.id, doc.data() as Map<String, dynamic>)).toList();
+  }
+
   Stream<List<Doctor>> getApprovedDoctors() {
     return _doctorsCollection
         .where('pendingApproval', isEqualTo: false)
